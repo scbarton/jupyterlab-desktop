@@ -35,7 +35,8 @@ export class SessionConfig {
   encryptedRemoteURL?: string;
   legacyRemoteURL?: string;
   // folder to show in the file browser, relative to workingDirectory. Set
-  // only for a folder opened in the default working directory, never stored.
+  // only for files or a folder opened in the default working directory, and
+  // never stored.
   folderToShow?: string;
 
   static createLocal(
@@ -78,10 +79,18 @@ export class SessionConfig {
       const root = userSettings.resolvedWorkingDirectory;
       if (files.length > 0) {
         if (isPathInside(root, files[0])) {
-          const rootFiles = files
-            .filter(file => isPathInside(root, file))
-            .map(file => path.relative(root, file));
-          return SessionConfig.createLocal(root, rootFiles);
+          const filesInRoot = files.filter(file => isPathInside(root, file));
+          const sessionConfig = SessionConfig.createLocal(
+            root,
+            filesInRoot.map(file => path.relative(root, file))
+          );
+          // show the folder of the most recently opened file, since the
+          // session is rooted above it
+          sessionConfig.folderToShow = path.relative(
+            root,
+            path.dirname(filesInRoot[filesInRoot.length - 1])
+          );
+          return sessionConfig;
         }
       } else if (folders.length > 0 && isPathInside(root, folders[0])) {
         const sessionConfig = SessionConfig.createLocal(root);

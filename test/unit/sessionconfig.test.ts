@@ -492,7 +492,18 @@ describe('SessionConfig.createLocalForFilesOrFolders in the default working dire
       path.join('projects', 'nb', 'test.ipynb'),
       path.join('other', 'b.ipynb')
     ]);
-    expect(s.folderToShow).toBeUndefined();
+    // the folder of the last file opened
+    expect(s.folderToShow).toBe('other');
+  });
+
+  it('shows the root itself for a file directly inside it', () => {
+    mockFs.lstatSync = statAs('file');
+    const s = SessionConfig.createLocalForFilesOrFolders([
+      '/home/user/test.ipynb'
+    ]);
+    expect(s.workingDirectory).toBe('/home/user');
+    expect(s.filesToOpen).toEqual(['test.ipynb']);
+    expect(s.folderToShow).toBe('');
   });
 
   it('roots a file outside it at its parent folder, as before', () => {
@@ -502,6 +513,7 @@ describe('SessionConfig.createLocalForFilesOrFolders in the default working dire
     ]);
     expect(s.workingDirectory).toBe('/data/nb');
     expect(s.filesToOpen).toEqual(['test.ipynb']);
+    expect(s.folderToShow).toBeUndefined();
   });
 
   it('treats a sibling that shares its name prefix as outside', () => {

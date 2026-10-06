@@ -74,7 +74,7 @@ If the environment variable you set already exists, it will be replaced by your 
 
 By default, opening a file (by double-clicking it, dropping it on the app icon, using the welcome page or the `jlab` CLI) starts a new session in a new window, rooted at the file's folder. Opening files from different folders gives a window and a server for each folder.
 
-To keep a single session instead, check `Open files and folders inside the default working directory in a single shared window` in the Server tab of the settings dialog. Files inside the default working directory (your home folder unless you changed it) then open as tabs in one session rooted at that directory, reusing its window when one is open. Opening a folder inside the default working directory shows it in that session's file browser. Files and folders outside the default working directory still open in a session of their own.
+To keep a single session instead, check `Open files and folders inside the default working directory in a single shared window` in the Server tab of the settings dialog. Files inside the default working directory (your home folder unless you changed it) then open as tabs in one session rooted at that directory, reusing its window when one is open, and the file browser moves to the folder of the file opened last. Opening a folder inside the default working directory shows it in that session's file browser. Files and folders outside the default working directory still open in a session of their own.
 
 # Connecting to an existing JupyterLab Server
 

@@ -55,6 +55,7 @@ export enum SettingType {
   showNewsFeed = 'showNewsFeed',
 
   defaultWorkingDirectory = 'defaultWorkingDirectory',
+  openInDefaultWorkingDirectory = 'openInDefaultWorkingDirectory',
   pythonPath = 'pythonPath',
   serverArgs = 'serverArgs',
   overrideDefaultServerArgs = 'overrideDefaultServerArgs',
@@ -154,6 +155,9 @@ export class UserSettings {
       syncJupyterLabTheme: new Setting<boolean>(true),
 
       defaultWorkingDirectory: new Setting<string>(''),
+      // open files and folders inside the default working directory in a
+      // single session rooted there, instead of a session per parent folder
+      openInDefaultWorkingDirectory: new Setting<boolean>(false),
       pythonPath: new Setting<string>('', { wsOverridable: true }),
       serverArgs: new Setting<string>('', { wsOverridable: true }),
       overrideDefaultServerArgs: new Setting<boolean>(false, {

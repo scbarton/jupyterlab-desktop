@@ -43,6 +43,14 @@ const DESKTOP_APP_ASSETS_PATH = 'desktop-app-assets';
 // net::ERR_ABORTED, what Chromium reports for a navigation cancelled in flight
 const ERR_ABORTED = -3;
 
+/**
+ * A relative file system path as a JavaScript string literal of the
+ * '/'-separated path the lab contents API expects.
+ */
+function toLabPath(relPath: string): string {
+  return JSON.stringify(relPath.split(path.sep).join('/'));
+}
+
 export class LabView implements IDisposable {
   constructor(options: LabView.IOptions) {
     this._parent = options.parent;
@@ -231,14 +239,21 @@ export class LabView implements IDisposable {
     return false;
   }
 
-  async openFiles() {
-    if (this.shouldSetToSingleFileUIMode()) {
+  /**
+   * Open files, given relative to the working directory, as lab tabs.
+   * Defaults to the session's filesToOpen. Pass setUIMode false when adding
+   * files to a session already in use, so its layout is left alone.
+   */
+  async openFiles(
+    filesToOpen: string[] = this._sessionConfig.filesToOpen,
+    options?: { setUIMode?: boolean }
+  ) {
+    if (options?.setUIMode !== false && this.shouldSetToSingleFileUIMode()) {
       this._setUIMode(
         userSettings.getValue(SettingType.uiModeForSingleFileOpen)
       );
     }
 
-    const filesToOpen = this._sessionConfig.filesToOpen;
     filesToOpen.forEach(async (relPath: string) => {
       if (relPath === '') {
         return;
@@ -254,18 +269,41 @@ export class LabView implements IDisposable {
             {
               const lab = window.jupyterapp || window.jupyterlab;
               if (lab) {
-                lab.commands.execute('docmanager:open', { path: '${relPath}' });
+                lab.commands.execute('docmanager:open', { path: ${toLabPath(
+                  relPath
+                )} });
               }
             }
             0; // response
           `);
         } else {
-          log.error(`Valid file not found at path: ${path}`);
+          log.error(`Valid file not found at path: ${filePath}`);
         }
       } catch (error) {
-        log.error(`Failed to open file at path: ${path}. Error: `, error);
+        log.error(`Failed to open file at path: ${filePath}. Error: `, error);
       }
     });
+  }
+
+  /**
+   * Point the file browser at a folder, given relative to the working directory.
+   */
+  async showFolder(relPath: string) {
+    try {
+      await this._view.webContents.executeJavaScript(`
+        {
+          const lab = window.jupyterapp || window.jupyterlab;
+          if (lab) {
+            lab.commands.execute('filebrowser:go-to-path', { path: ${toLabPath(
+              relPath
+            )} });
+          }
+        }
+        0; // response
+      `);
+    } catch (error) {
+      log.error(`Failed to show folder: ${relPath}. Error: `, error);
+    }
   }
 
   async newNotebook() {

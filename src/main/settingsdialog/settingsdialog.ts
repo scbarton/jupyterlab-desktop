@@ -38,6 +38,7 @@ export class SettingsDialog {
       notifyOnBundledEnvUpdates,
       updateBundledEnvAutomatically,
       defaultWorkingDirectory,
+      openInDefaultWorkingDirectory,
       logLevel,
       serverArgs,
       overrideDefaultServerArgs,
@@ -231,6 +232,9 @@ export class SettingsDialog {
                 <div>
                   <jp-button id='select-working-directory' onclick='handleSelectWorkingDirectory(this);'>Change</jp-button>
                 </div>
+              </div>
+              <div class="row">
+                <jp-checkbox id='checkbox-open-in-working-directory' type='checkbox' <%= openInDefaultWorkingDirectory ? 'checked' : '' %>>Open files and folders inside the default working directory in a single shared window</jp-checkbox>
               </div>
 
               <div class="row">
@@ -524,7 +528,8 @@ export class SettingsDialog {
             updateBundledEnvAutomatically: updateBundledEnvAutomaticallyCheckbox.checked,
             uiMode: document.getElementById('ui-mode').value,
             uiModeForSingleFileOpen: document.getElementById('ui-mode-for-single-file-open').value,
-            showTOCInZenMode: document.getElementById('checkbox-show-toc-in-zen-mode').checked
+            showTOCInZenMode: document.getElementById('checkbox-show-toc-in-zen-mode').checked,
+            openInDefaultWorkingDirectory: document.getElementById('checkbox-open-in-working-directory').checked
           });
 
           window.electronAPI.setDefaultWorkingDirectory(workingDirectoryInput.value);
@@ -561,6 +566,7 @@ export class SettingsDialog {
       notifyOnBundledEnvUpdates,
       updateBundledEnvAutomatically,
       defaultWorkingDirectory,
+      openInDefaultWorkingDirectory,
       logLevel,
       serverArgs,
       overrideDefaultServerArgs,
@@ -603,6 +609,7 @@ export namespace SettingsDialog {
     notifyOnBundledEnvUpdates: boolean;
     updateBundledEnvAutomatically: boolean;
     defaultWorkingDirectory: string;
+    openInDefaultWorkingDirectory: boolean;
     activateTab?: Tab;
     logLevel: LogLevel;
     serverArgs: string;

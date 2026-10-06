@@ -14,6 +14,7 @@ vi.mock('../../src/main/config/settings', () => ({
   },
   SettingType: {
     defaultWorkingDirectory: 'defaultWorkingDirectory',
+    openInDefaultWorkingDirectory: 'openInDefaultWorkingDirectory',
     pythonPath: 'pythonPath'
   },
   DEFAULT_WIN_WIDTH: 1024,
@@ -24,8 +25,12 @@ vi.mock('../../src/main/config/appdata', () => ({
   appData: { recentSessions: [] as any[] }
 }));
 
-import { SessionConfig } from '../../src/main/config/sessionconfig';
+import {
+  isPathInside,
+  SessionConfig
+} from '../../src/main/config/sessionconfig';
 import { appData } from '../../src/main/config/appdata';
+import { userSettings } from '../../src/main/config/settings';
 
 const mockFs = vi.mocked(fs);
 const mockSafeStorage = vi.mocked(safeStorage);
@@ -441,6 +446,104 @@ describe('SessionConfig.createLocalForFilesOrFolders', () => {
     ]);
     // files take precedence: working dir should be parent of the file
     expect(s.workingDirectory).toBe('/some/folder');
+  });
+
+  it('ignores the default working directory when the setting is off', () => {
+    mockFs.lstatSync = vi.fn(
+      () => ({ isFile: () => true, isDirectory: () => false } as fs.Stats)
+    );
+    const s = SessionConfig.createLocalForFilesOrFolders([
+      '/home/user/projects/nb/test.ipynb'
+    ]);
+    expect(s.workingDirectory).toBe('/home/user/projects/nb');
+    expect(s.filesToOpen).toEqual(['test.ipynb']);
+  });
+});
+
+describe('SessionConfig.createLocalForFilesOrFolders in the default working directory', () => {
+  const mockGetValue = vi.mocked(userSettings.getValue);
+
+  beforeEach(() => {
+    mockGetValue.mockImplementation(((setting: string) =>
+      setting === 'openInDefaultWorkingDirectory' ? true : '') as any);
+  });
+
+  afterEach(() => {
+    mockGetValue.mockImplementation((() => '') as any);
+  });
+
+  const statAs = (kind: 'file' | 'folder') =>
+    vi.fn(
+      () =>
+        ({
+          isFile: () => kind === 'file',
+          isDirectory: () => kind === 'folder'
+        } as fs.Stats)
+    );
+
+  it('roots a file inside it at the default working directory', () => {
+    mockFs.lstatSync = statAs('file');
+    const s = SessionConfig.createLocalForFilesOrFolders([
+      '/home/user/projects/nb/test.ipynb',
+      '/home/user/other/b.ipynb'
+    ]);
+    expect(s.workingDirectory).toBe('/home/user');
+    expect(s.filesToOpen).toEqual([
+      path.join('projects', 'nb', 'test.ipynb'),
+      path.join('other', 'b.ipynb')
+    ]);
+    expect(s.folderToShow).toBeUndefined();
+  });
+
+  it('roots a file outside it at its parent folder, as before', () => {
+    mockFs.lstatSync = statAs('file');
+    const s = SessionConfig.createLocalForFilesOrFolders([
+      '/data/nb/test.ipynb'
+    ]);
+    expect(s.workingDirectory).toBe('/data/nb');
+    expect(s.filesToOpen).toEqual(['test.ipynb']);
+  });
+
+  it('treats a sibling that shares its name prefix as outside', () => {
+    mockFs.lstatSync = statAs('file');
+    const s = SessionConfig.createLocalForFilesOrFolders([
+      '/home/username/test.ipynb'
+    ]);
+    expect(s.workingDirectory).toBe('/home/username');
+  });
+
+  it('roots a folder inside it there and records the folder to show', () => {
+    mockFs.lstatSync = statAs('folder');
+    const s = SessionConfig.createLocalForFilesOrFolders([
+      '/home/user/projects'
+    ]);
+    expect(s.workingDirectory).toBe('/home/user');
+    expect(s.filesToOpen).toEqual([]);
+    expect(s.folderToShow).toBe('projects');
+  });
+
+  it('roots a folder outside it at the folder, as before', () => {
+    mockFs.lstatSync = statAs('folder');
+    const s = SessionConfig.createLocalForFilesOrFolders(['/data/notebooks']);
+    expect(s.workingDirectory).toBe('/data/notebooks');
+    expect(s.folderToShow).toBeUndefined();
+  });
+});
+
+describe('isPathInside', () => {
+  it('accepts the folder itself and paths below it', () => {
+    expect(isPathInside('/home/user', '/home/user')).toBe(true);
+    expect(isPathInside('/home/user', '/home/user/a/b.ipynb')).toBe(true);
+  });
+
+  it('accepts a child whose name starts with two dots', () => {
+    expect(isPathInside('/home/user', '/home/user/..notes')).toBe(true);
+  });
+
+  it('rejects parents, siblings and name-prefix siblings', () => {
+    expect(isPathInside('/home/user', '/home')).toBe(false);
+    expect(isPathInside('/home/user', '/home/other/a.ipynb')).toBe(false);
+    expect(isPathInside('/home/user', '/home/username/a.ipynb')).toBe(false);
   });
 });
 

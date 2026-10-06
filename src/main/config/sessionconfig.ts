@@ -34,6 +34,9 @@ export class SessionConfig {
   cookies?: Electron.Cookie[];
   encryptedRemoteURL?: string;
   legacyRemoteURL?: string;
+  // folder to show in the file browser, relative to workingDirectory. Set
+  // only for a folder opened in the default working directory, never stored.
+  folderToShow?: string;
 
   static createLocal(
     workingDirectory?: string,
@@ -70,6 +73,22 @@ export class SessionConfig {
         console.error('Failed to get info for selected files');
       }
     });
+
+    if (userSettings.getValue(SettingType.openInDefaultWorkingDirectory)) {
+      const root = userSettings.resolvedWorkingDirectory;
+      if (files.length > 0) {
+        if (isPathInside(root, files[0])) {
+          const rootFiles = files
+            .filter(file => isPathInside(root, file))
+            .map(file => path.relative(root, file));
+          return SessionConfig.createLocal(root, rootFiles);
+        }
+      } else if (folders.length > 0 && isPathInside(root, folders[0])) {
+        const sessionConfig = SessionConfig.createLocal(root);
+        sessionConfig.folderToShow = path.relative(root, folders[0]);
+        return sessionConfig;
+      }
+    }
 
     if (files.length > 0) {
       const workingDir = path.dirname(files[0]);
@@ -420,4 +439,17 @@ export class SessionConfig {
 
     return jsonData;
   }
+}
+
+/**
+ * Whether filePath is dir itself or somewhere below it.
+ */
+export function isPathInside(dir: string, filePath: string): boolean {
+  const relative = path.relative(dir, filePath);
+  // a name like '..notes' is still inside, so match '..' only as a segment
+  return (
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
 }

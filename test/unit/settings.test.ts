@@ -166,6 +166,11 @@ describe('UserSettings', () => {
     expect(us.getValue(SettingType.theme)).toBe(ThemeType.System);
   });
 
+  it('does not open files in the default working directory by default', () => {
+    const us = new UserSettings(false);
+    expect(us.getValue(SettingType.openInDefaultWorkingDirectory)).toBe(false);
+  });
+
   it('setValue then getValue round-trips a non-default value', () => {
     const us = new UserSettings(false);
     us.setValue(SettingType.theme, ThemeType.Light);

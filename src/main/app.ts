@@ -80,6 +80,7 @@ export interface IApplication {
     activateTab?: ManagePythonEnvironmentDialog.Tab
   ): void;
   showAboutDialog(): void;
+  openInExistingSession(sessionConfig: SessionConfig | undefined): boolean;
   cliArgs: ICLIArguments;
   registry: IRegistry;
 }
@@ -121,6 +122,21 @@ class SessionWindowManager implements IDisposable {
     }
 
     return this.createNewEmptyWindow();
+  }
+
+  /**
+   * The window showing a local lab session rooted at workingDirectory, if any.
+   */
+  findLocalLabWindow(workingDirectory: string): SessionWindow | undefined {
+    return this._windows.find(sessionWindow => {
+      const sessionConfig = sessionWindow.sessionConfig;
+      return (
+        sessionWindow.contentViewType === ContentViewType.Lab &&
+        sessionConfig &&
+        !sessionConfig.isRemote &&
+        sessionConfig.resolvedWorkingDirectory === workingDirectory
+      );
+    });
   }
 
   getEmptyWindowCount(): number {
@@ -365,13 +381,58 @@ export class JupyterApplication implements IApplication, IDisposable {
   }
 
   handleOpenFilesOrFolders(fileOrFolders?: string[]) {
+    if (
+      this.openInExistingSession(
+        SessionConfig.createLocalForFilesOrFolders(fileOrFolders)
+      )
+    ) {
+      return;
+    }
+
     const sessionWindow = this._sessionWindowManager.getOrCreateEmptyWindow();
     sessionWindow.handleOpenFilesOrFolders(fileOrFolders);
 
     this.focusSession(sessionWindow);
   }
 
+  /**
+   * With openInDefaultWorkingDirectory on, open the session's files and folder
+   * in the window already showing a local session at its working directory.
+   * Returns false, having done nothing, if there is no such window. A session
+   * with nothing to open is a request for a new session, so it is not reused.
+   */
+  openInExistingSession(sessionConfig: SessionConfig | undefined): boolean {
+    if (
+      !sessionConfig ||
+      sessionConfig.isRemote ||
+      !userSettings.getValue(SettingType.openInDefaultWorkingDirectory) ||
+      (sessionConfig.filesToOpen.length === 0 &&
+        sessionConfig.folderToShow === undefined)
+    ) {
+      return false;
+    }
+
+    const sessionWindow = this._sessionWindowManager.findLocalLabWindow(
+      sessionConfig.resolvedWorkingDirectory
+    );
+    if (!sessionWindow) {
+      return false;
+    }
+
+    void sessionWindow.openFilesAndFolder(
+      sessionConfig.filesToOpen,
+      sessionConfig.folderToShow
+    );
+    this.focusSession(sessionWindow);
+
+    return true;
+  }
+
   openSession(sessionConfig: SessionConfig) {
+    if (this.openInExistingSession(sessionConfig)) {
+      return;
+    }
+
     const sessionWindow = this._sessionWindowManager.getOrCreateEmptyWindow();
     sessionWindow.openSession(sessionConfig);
 
@@ -414,6 +475,9 @@ export class JupyterApplication implements IApplication, IDisposable {
         ),
         defaultWorkingDirectory: userSettings.getValue(
           SettingType.defaultWorkingDirectory
+        ),
+        openInDefaultWorkingDirectory: userSettings.getValue(
+          SettingType.openInDefaultWorkingDirectory
         ),
         logLevel: userSettings.getValue(SettingType.logLevel),
         activateTab: activateTab,

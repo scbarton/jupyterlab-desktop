@@ -30,7 +30,8 @@ import {
   getLogFilePath,
   isDarkTheme,
   LightThemeBGColor,
-  matchesScheme
+  matchesScheme,
+  waitForFunction
 } from '../utils';
 import { IServerFactory, JupyterServer, JupyterServerFactory } from '../server';
 import {
@@ -217,9 +218,16 @@ export class SessionWindow implements IDisposable {
         this._createServerForSession()
           .then(() => {
             this._updateContentView();
-            if (this._sessionConfig.filesToOpen.length > 0) {
+            const folderToShow = this._sessionConfig.folderToShow;
+            if (
+              this._sessionConfig.filesToOpen.length > 0 ||
+              folderToShow !== undefined
+            ) {
               this._labView.labUIReady.then(() => {
                 this._labView.openFiles();
+                if (folderToShow !== undefined) {
+                  this._labView.showFolder(folderToShow);
+                }
               });
             }
             appData.addSessionToRecents({
@@ -847,7 +855,7 @@ export class SessionWindow implements IDisposable {
           return;
         }
 
-        this.handleOpenFilesOrFolders(fileOrFolders);
+        this._openFilesOrFoldersFromWelcomeView(fileOrFolders);
       }
     );
 
@@ -1531,7 +1539,10 @@ export class SessionWindow implements IDisposable {
       this._createSessionForLocal(
         sessionConfig.workingDirectory,
         sessionConfig.filesToOpen,
-        sessionConfig.pythonPath
+        sessionConfig.pythonPath,
+        undefined,
+        undefined,
+        sessionConfig.folderToShow
       ).catch(error => {
         const escapedError = ejs.escapeXML(String(error));
         this._setProgress(
@@ -1574,7 +1585,11 @@ export class SessionWindow implements IDisposable {
       this._disposeSession().then(() => {
         this._createSessionForLocal(
           sessionConfig.workingDirectory,
-          sessionConfig.filesToOpen
+          sessionConfig.filesToOpen,
+          undefined,
+          undefined,
+          undefined,
+          sessionConfig.folderToShow
         ).catch(error => {
           const escapedError = ejs.escapeXML(String(error));
           this._setProgress(
@@ -1590,12 +1605,47 @@ export class SessionWindow implements IDisposable {
     }
   }
 
+  /**
+   * Add files, relative to the working directory, as tabs of this window's
+   * running lab session, and point its file browser at folder if given.
+   */
+  async openFilesAndFolder(filesToOpen: string[], folder?: string) {
+    // a session restored at launch may not have created its lab view yet
+    await waitForFunction(() => !!this._labView);
+    const labView = this._labView;
+    await labView.labUIReady;
+
+    if (filesToOpen.length > 0) {
+      await labView.openFiles(filesToOpen, { setUIMode: false });
+      appData.addSessionToRecents({
+        workingDirectory: this._sessionConfig.resolvedWorkingDirectory,
+        filesToOpen: [...filesToOpen]
+      });
+    }
+    if (folder !== undefined) {
+      await labView.showFolder(folder);
+    }
+  }
+
+  private _openFilesOrFoldersFromWelcomeView(fileOrFolders: string[]) {
+    if (
+      this._app.openInExistingSession(
+        SessionConfig.createLocalForFilesOrFolders(fileOrFolders)
+      )
+    ) {
+      return;
+    }
+
+    this.handleOpenFilesOrFolders(fileOrFolders);
+  }
+
   private async _createSessionForLocal(
     workingDirectory?: string,
     filesToOpen?: string[],
     pythonPath?: string,
     recentSessionIndex?: number,
-    useDefaultPythonEnv?: boolean
+    useDefaultPythonEnv?: boolean,
+    folderToShow?: string
   ) {
     const sessionConfig = SessionConfig.createLocal(
       workingDirectory,
@@ -1666,9 +1716,12 @@ export class SessionWindow implements IDisposable {
     this._updateSessionWindowPositionConfig();
     this._sessionConfigChanged.emit();
 
-    if (filesToOpen) {
+    if (filesToOpen || folderToShow !== undefined) {
       this.labView.labUIReady.then(() => {
         this.labView.openFiles();
+        if (folderToShow !== undefined) {
+          this.labView.showFolder(folderToShow);
+        }
         this._hideProgressView();
       });
     } else {
@@ -1891,7 +1944,7 @@ export class SessionWindow implements IDisposable {
       buttonLabel: 'Open'
     });
     if (filePaths.length > 0) {
-      this.handleOpenFilesOrFolders(filePaths);
+      this._openFilesOrFoldersFromWelcomeView(filePaths);
     }
   }
 

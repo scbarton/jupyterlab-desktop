@@ -70,6 +70,12 @@ If the environment variable you set already exists, it will be replaced by your 
 
 <img src="media/server-env-vars.png" alt="Server environment vars" width=800 />
 
+## Opening Files in the Default Working Directory
+
+By default, opening a file (by double-clicking it, dropping it on the app icon, using the welcome page or the `jlab` CLI) starts a new session in a new window, rooted at the file's folder. Opening files from different folders gives a window and a server for each folder.
+
+To keep a single session instead, check `Open files and folders inside the default working directory in a single shared window` in the Server tab of the settings dialog. Files inside the default working directory (your home folder unless you changed it) then open as tabs in one session rooted at that directory, reusing its window when one is open. Opening a folder inside the default working directory shows it in that session's file browser. Files and folders outside the default working directory still open in a session of their own.
+
 # Connecting to an existing JupyterLab Server
 
 JupyterLab Desktop creates new JupyterLab sessions by launching a locally running JupyterLab server and connecting to it. It can also connect to an existing JupyterLab server instance that is running locally or remotely. In order to connect to a server, click the `Connect...` button in the Start section of the Welcome Page.

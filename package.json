@@ -63,9 +63,17 @@
     "directories": {
       "buildResources": "dist-resources"
     },
-    "fileAssociations": {
-      "ext": "ipynb"
-    },
+    "fileAssociations": [
+      {
+        "ext": "ipynb"
+      },
+      {
+        "ext": "py",
+        "name": "Python",
+        "role": "Editor",
+        "rank": "Alternate"
+      }
+    ],
     "files": [
       "!**/*.d.ts",
       "!env_installer",
